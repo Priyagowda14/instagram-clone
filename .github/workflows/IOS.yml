@@ -1,0 +1,62 @@
+name: iOS CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-test-ios:
+    runs-on: macos-latest
+
+    env:
+      PROJECT_DIR: App
+      SCHEME: instagram-clone
+      SDK: iphonesimulator
+      DESTINATION: platform=iOS Simulator,name=iPhone 14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Ruby (for CocoaPods if needed)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1
+
+      - name: Install CocoaPods dependencies (if using)
+        run: |
+          cd $PROJECT_DIR
+          pod install
+        if: exists('${{ env.PROJECT_DIR }}/Podfile')
+
+      - name: Build app
+        run: |
+          cd $PROJECT_DIR
+          xcodebuild \
+            -scheme "$SCHEME" \
+            -sdk "$SDK" \
+            -destination "$DESTINATION" \
+            -configuration Debug \
+            clean build | tee build.log
+
+      - name: Run Tests
+        run: |
+          cd $PROJECT_DIR
+          xcodebuild \
+            -scheme "$SCHEME" \
+            -sdk "$SDK" \
+            -destination "$DESTINATION" \
+            test | tee test.log
+
+      - name: Archive app (only on main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd $PROJECT_DIR
+          xcodebuild archive \
+            -scheme "$SCHEME" \
+            -archivePath build/instagram-clone.xcarchive
+
+      - name: Cleanup build artifacts
+        run: rm -rf $PROJECT_DIR/build
