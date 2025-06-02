@@ -28,11 +28,12 @@ jobs:
         run: sudo gem install xcpretty
 
       - name: Install CocoaPods dependencies (if Podfile exists)
+        if: hashFiles('Podfile') != ''
         run: pod install
-        if: ${{ always() && hashFiles('Podfile') != '' }}
 
       - name: Build the app
         run: |
+          set -o pipefail
           xcodebuild \
             -scheme "$SCHEME" \
             -sdk "$SDK" \
@@ -42,10 +43,13 @@ jobs:
 
       - name: Run tests
         run: |
+          set -o pipefail
           xcodebuild \
             -scheme "$SCHEME" \
             -sdk "$SDK" \
             -destination "$DESTINATION" \
+            -configuration Debug \
+            -resultBundlePath TestResults/TestResult.xcresult \
             test | xcpretty
 
       - name: Upload test results (optional)
@@ -53,4 +57,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: xcode-results
-          path: '*/.xcresult'
+          path: TestResults
